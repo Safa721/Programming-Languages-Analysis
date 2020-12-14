@@ -1,0 +1,230 @@
+---
+title: "Stack Overflow Developer Survey"
+author: "Safa Alshaalan"
+date: "12/10/2020"
+reference: "https://www.kaggle.com/stackoverflow/so-survey-2017"
+output: html_document
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# load packages
+library(tidyverse) # Including import and ggplot and dplyr
+library(RColorBrewer) # Use it to change the colors "visualization"
+library(ggplot2) # Using it with the visualization
+library(dplyr) # Using it with the visualization
+library(plyr) # Makes it simple to split data apart
+library(forecast) # Using it with the visualization
+library(bestNormalize)
+library(visdat) 
+library(recipes)
+library(caret)
+library(rsample)
+library(vip)
+library(glmnet)
+library(stringr)
+library(rio)
+library(shiny)
+library(plotly)
+```
+
+## Exploratory Data Analysis
+##### In this analysis project, I'll focus on the developer, what are the most languages using these days and what the fresh graduated supposed to expect and do since they graduated.
+```{r reading the data, include=FALSE}
+# Read in the data
+surveyresult <- read.csv("survey_results_public.csv")
+```
+
+##### So let start with exploring my dataset, having an idea what I'll be dealing with, and what are the steps I'll go through.
+##### Let start with how large my dataset is.
+
+```{r, echo=FALSE}
+summary(surveyresult)
+```
+
+##### As we saw above in the summary, I have large dataset that includes 154 columns, and 51392 rows. There are specific columns I'll be dealing with which are:
+* EmploymentStatus
+* HaveWorkedLanguage
+* FormalEducation
+* Professional
+
+--------------------------------------------------------------------------------------------------------------
+
+### Employment Status
+```{r surveyresult, include=FALSE}
+count(surveyresult, 'EmploymentStatus')
+```
+
+Employment Status                                    | frequency
+---------------------------------------------------- | -------------
+Employed full-time                                   | 36148
+Employed part-time                                   | 3180
+I prefer not to say                                  | 1086
+Independent contractor, freelancer, or self-employed | 5233
+Not employed, and not looking for work               | 2791
+Not employed, but looking for work                   | 2786
+Retired                                              | 168
+
+
+##### As we can see in the table, the 'EmploymentStatus' column includes more than one status such as part-time, freelancers, not employed, and retired. These will not help me with my analysis so I extracted full-time employed in a separate dataframe.
+
+```{r Employers Full Time, include=FALSE}
+EmploymentStatus <- surveyresult[, c("EmploymentStatus")]
+EFT <- surveyresult %>% filter(EmploymentStatus == "Employed full-time")
+```
+
+```{r EFT EDA, include=FALSE}
+(nrow(EFT))
+colnames(EFT)
+```
+
+--------------------------------------------------------------------------------------------------------------
+
+### What are the most using languages these days?
+##### After I made the dataframe, I'll start work on it starting with 'HaveWorkedLanguage' column, which is the answer for "Which of the following languages have you done extensive development work in over the past year, and which do you want to work in over the next year?", and that will give us the answer for "What are the most using languages these days?".
+
+```{r, include=FALSE}
+HaveWorkedLanguage <- surveyresult[, c("HaveWorkedLanguage")]
+```
+
+##### After I extracted that column, I got the results as the following:
+
+```{r, echo=FALSE}
+HaveWorkedLanguage[1:11]
+```
+
+##### I needed to separate the languages in different cells to count the frequency. I used "strsplit" function to separate them.
+
+```{r, include=FALSE}
+lang <- data.frame(do.call('rbind',strsplit(as.character(EFT$HaveWorkedLanguage),';',fixed = TRUE)))
+```
+
+##### After I sepreated them I cleaned the dataframe by removing the NA's, and then counting the frequency for the languages.
+##### After I sepreated and cleaned, I got the following dataframe.
+
+```{r, include=FALSE}
+sum(is.na(lang))
+lang <- lang[!is.na(lang)]
+
+lang1 <- data.frame(table(unlist(strsplit(tolower(lang), " "))))
+colnames(lang1)
+
+lang2 <- lang1[-c(1),]
+```
+
+```{r, include=FALSE}
+lang2
+```
+
+Languages            | frequency
+-------------------- | -------------
+6                    | 4383
+assembly             | 6427
+basic                | 4383
+c                    | 34402
+c#                   | 103805
+c++                  | 46597
+clojure              | 2309
+coffeescript         | 6095
+common               | 926
+dart                 | 606
+elixir               | 1912
+erlang               | 1210
+f#                   | 2354
+go                   | 8949
+groovy               | 7833
+hack                 | 387
+haskell              | 2302
+java                 | 111630
+javascript           | 180972
+julia                | 595
+lisp                 | 926
+lua                  | 3810
+matlab               | 7228
+objective-c          | 14906
+perl                 | 9688
+php                  | 64628
+python               | 78136
+r                    | 10649
+ruby                 | 22281
+rust                 | 1611
+scala                | 8804
+smalltalk            | 2927
+sql                  | 128785
+swift                | 13579
+typescript           | 20508
+vb.net               | 11847
+vba                  | 8899
+visual               | 4383
+
+
+--------------------------------------------------------------------------------------------------------------
+
+## Plotting
+##### It is the time to use the plots to have good visualization results
+##### The following plot is showing us the frequency for each language, and we can see the most used language currently is 'Javascript'.
+
+```{r, echo=FALSE}
+ggplot(data= lang2, aes(x = reorder(Var1, -Freq) ,
+                        y = Freq)) +
+  geom_col(fill = "#9d8fdb") +
+  scale_y_continuous(labels = scales::comma) +
+  coord_flip() +
+  labs(x = "Programming Lnguages",
+       y = "Freq",
+       title = "Languages Frequency") +
+  theme_minimal()
+```
+
+--------------------------------------------------------------------------------------------------------------
+
+### What the fresh graduates should expect?
+
+##### So let's deep analyze what we have.
+##### Depends on the previous results let's see the Formal Education for those people and the Professionality as well, and let's try to answer What the fresh graduates supposed to expect?
+
+### Formal Education
+```{r, include=FALSE}
+EFT[, c("FormalEducation")]
+count(EFT, 'FormalEducation')
+FE <- EFT[, c("FormalEducation")]
+FEfreq <- count(FE)
+```
+
+```{r, echo=FALSE}
+ggplot(FEfreq, aes(x= x, y=freq)) +
+  geom_bar(stat="identity", fill="#f68060", alpha=.6, width=.4) +
+  coord_flip() +
+  xlab("") +
+  theme_bw()
+```
+
+--------------------------------------------------------------------------------------------------------------
+
+### Professionality
+```{r, include=FALSE}
+surveyresult$Professional
+EFT[, c("Professional")]
+count(EFT, 'Professional')
+Professionality <- EFT[, c("Professional")]
+Professionalitydf <- count(Professionality)
+```
+
+```{r, echo=FALSE}
+ggplot(Professionalitydf, aes(x= x, y=freq)) +
+  geom_bar(stat="identity", fill="#f68060", alpha=.6, width=.4) +
+  coord_flip() +
+  xlab("") +
+  theme_bw()
+```
+
+##### So the results show us that the majority of full-time employers are having their bachelor degree and they are considered as professional developers.
+
+##### That gives us an idea that the market requires a good degree from the graduated students, and they should work heavily after they graduated to have good experience in developing, either if it's web development, software development, applications development etc. That will give them a high opportunity to be hired.
+
+--------------------------------------------------------------------------------------------------------------
+
+
+
+

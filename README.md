@@ -5,3 +5,7 @@
 - r markdown file. Including the scripts that I've been working on.
 - r markdown. Includes the scripts and explanation for the steps and the answers to the questions that I've been working to solve.
 - HTML. Output file.
+
+## The questions I solved are:
+- What are the most using languages these days?
+- What the fresh graduates should expect?

@@ -1,0 +1,502 @@
+---
+title: "SALARYANALYSING"
+author: "Safa Alshaalan"
+date: "1/29/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+surveyresult <- read.csv("survey_results_public.csv")
+surveyquestions <- read.csv("survey_results_schema.csv")
+library(plyr) # To use count
+library(ggplot2) # Using it with the visualization
+library(knitr) # To organize the tables
+library(rmarkdown) # To organize the tables
+library(dplyr) # To use %>%
+library(visdat) # To use vis_miss
+library(tidyr) # To use drop_na
+library(tidyverse)
+library(cowplot)
+library(reshape2)
+```
+
+## About the project
+The main research question in this project is "What is the Predicted salary for the software developers ?". To answer the main question I'll analyse a dataset that I got from Kaggle "<https://www.kaggle.com/stackoverflow/so-survey-2017>"
+
+A short brief about the dataset:
+It is a look into the lives of over 64,000 developers from 213 countries.
+
+The data is made up of two files, but I'll be using only the public:
+
+survey_results_public.csv - CSV file with main survey results, one respondent per row and one column per answer.
+```{r, echo=FALSE}
+paged_table(surveyresult, options = list(rows.print = 15))
+```
+
+survey_results_schema.csv - CSV file with survey schema, i.e., the questions that correspond to each column name.
+```{r, echo=FALSE}
+paged_table(surveyquestions, options = list(rows.print = 15))
+```
+
+The majority of the questions are about the developer's career, such as the languages they worked on, what are their professions and what kind of developers they are, if they web developers, applications developers etc.
+
+
+## EDA and Features engineering:
+
+Check if I have NA's in the dataset
+```{r}
+sum(is.na(surveyresult))
+```
+
+Visualizing the missing values
+```{r, echo=FALSE}
+vis_miss(surveyresult, warn_large_data = FALSE)
+```
+
+Because the dataset includes large missing values, I'll create a dataframe with the columns I'll be using.
+
+Executing the columns and creating the dataframe under name "DFSR"
+```{r, include=FALSE}
+ DFSR <- surveyresult%>%
+  select(Professional,EmploymentStatus,FormalEducation,YearsProgram,YearsCodedJob,UnderstandComputers,JobProfile,HaveWorkedLanguage,HaveWorkedDatabase,HaveWorkedFramework,HaveWorkedPlatform,Salary)
+```
+
+```{r, echo=FALSE}
+paged_table(DFSR, options = list(rows.print = 15))
+```
+
+Chcking the NA's in the dataframe "DFSR"
+```{r}
+sum(is.na(DFSR))
+```
+
+Visualizing the missing values in the dataframe "DFSR"
+```{r}
+vis_miss(DFSR, warn_large_data = FALSE)
+```
+
+The must NA's that I have are in the student's rows because they haven't had a job before, so deleting them will leave me with only **professional developer** category from the **Professional** column.
+
+As we can see in the plot above the most NA's are in the Salary's column, I'll change the NA's with 0
+```{r}
+DFSR[,c("Salary")][is.na(DFSR[,c("Salary")])] <- 0
+```
+
+Replacing the NA's in the **YearsProgram** and **YearsCodedJob** as well with 0, because all of them includes numbers.
+
+```{r}
+DFSR[,c("YearsProgram")][is.na(DFSR[,c("YearsProgram")])] <- 0
+```
+
+```{r}
+DFSR[,c("YearsCodedJob")][is.na(DFSR[,c("YearsCodedJob")])] <- 0
+```
+
+Check again the missing values
+```{r}
+vis_miss(DFSR, warn_large_data = FALSE)
+```
+
+Changing the rest of the NA's in the dataframe to None.
+```{r}
+DFSR[is.na(DFSR)] <- "None"
+```
+
+Check if there is any missing values
+```{r}
+vis_miss(DFSR, warn_large_data = FALSE)
+```
+
+After I finished cleaning the dataframe I'll start answering the questions.
+
+-------------------------------------------------------------------------------------
+
+Q1. What are the professions of the software developers in the dataset?
+
+Extracted the **Professional** column.
+
+```{r}
+professions <- DFSR[, c("Professional")]
+```
+
+Count the categories frequency for the column.
+```{r, echo=FALSE}
+data.frame(table(unlist(tolower(professions), " ")))
+```
+
+Create a dataframe with the result to use it with the visualization.
+```{r}
+professionsfreq <- data.frame(table(unlist(tolower(professions), " ")))
+```
+
+Using the plot to have good visualization results
+```{r}
+ggplot(data= professionsfreq, aes(x = reorder(Var1, -Freq) ,
+                        y = Freq)) +
+  geom_col(fill = "#9d8fdb") +
+  scale_y_continuous(labels = scales::comma) +
+  coord_flip() +
+  labs(x = "Professions",
+       y = "Freq",
+       title = "Professions Frequency") +
+  theme_minimal()
+```
+As we can see above the most percentage go to the professional developers. Having a high percentage of that meant that they are the most needed in the market which means that they earn more salary than the others for higher demand for them.
+
+--------------------------------------------------------------------------------------------------
+
+Q2. What are the employment status of the software developers in the dataset?
+
+Extracting the **EmploymentStatus** column as a dataframe to count the frequency
+```{r}
+EmploymentStatus <- DFSR[, c("EmploymentStatus")]
+```
+
+Counting the categories frequency for the employment status and Create a dataframe with the result to use it with the visualization.
+```{r}
+EmploymentStatusfreq <- data.frame(table(unlist(tolower(EmploymentStatus), " ")))
+```
+
+```{r}
+EmploymentStatusfreq
+```
+
+Using the plot to have good visualization results
+```{r}
+ggplot(data= EmploymentStatusfreq, aes(x = reorder(Var1, -Freq) ,
+                        y = Freq)) +
+  geom_col(fill = "#9d8fdb") +
+  scale_y_continuous(labels = scales::comma) +
+  coord_flip() +
+  labs(x = "Professions",
+       y = "Freq",
+       title = "Professions Frequency") +
+  theme_minimal()
+```
+As we can see above we have 7 employee status in the data.
+
+-------------------------------------------------------------------------------------
+
+Q3.	What are the formal educations of the software developers in the dataset?
+
+Extracting the **FormalEducation** column as a dataframe to count the frequency
+```{r}
+FormalEducation <- DFSR[, c("FormalEducation")]
+```
+
+Counting the categories frequency for the formal education and Create a dataframe with the result to use it with the visualization.
+```{r}
+FormalEducationCategories <- data.frame(table(unlist(tolower(FormalEducation), " ")))
+```
+
+```{r}
+FormalEducationCategories
+```
+
+Using the plot to have good visualization results
+```{r}
+ggplot(data= FormalEducationCategories, aes(x = reorder(Var1, -Freq) ,
+                        y = Freq)) +
+  geom_col(fill = "#9d8fdb") +
+  scale_y_continuous(labels = scales::comma) +
+  coord_flip() +
+  labs(x = "Professions",
+       y = "Freq",
+       title = "Professions Frequency") +
+  theme_minimal()
+```
+
+Count the average for the salaries for the top 5 Formal Education Categories.
+
+1. bachelor's degree:
+Extracting the rows that includes "bachelor's degree" in FormalEducation column.
+```{r}
+bachelordegree <- paged_table(dplyr::filter(DFSR, grepl("Bachelor's degree",FormalEducation)))
+```
+
+Extract the Salary column from "bachelor's degree"
+```{r}
+bachelordegreeS <- bachelordegree[, c("Salary")]
+```
+
+Count the average
+```{r}
+bachelordegreeSmean <- print(mean(bachelordegreeS))
+```
+
+
+2. master's degree:
+Extracting the rows that includes "master's degree" in FormalEducation column.
+```{r}
+masterdegree <- paged_table(dplyr::filter(DFSR, grepl("Master's degree",FormalEducation)))
+```
+
+Extract the Salary column from "master's degree"
+```{r}
+masterdegreeS <- masterdegree[, c("Salary")]
+```
+
+Count the average
+```{r}
+masterdegreeSmean <- print(mean(masterdegreeS))
+```
+
+
+3. some college/university study without earning a bachelor's degree:
+Extracting the rows that includes "some college/university study without earning a bachelor's degree" in FormalEducation column.
+```{r}
+without <- paged_table(dplyr::filter(DFSR, grepl("some college/university study without earning a bachelor's degree",FormalEducation)))
+```
+
+Extract the Salary column from "some college/university study without earning a bachelor's degree"
+```{r}
+withoutS <- without[, c("Salary")]
+```
+
+Count the average
+```{r}
+withoutSmean <- print(mean(withoutS))
+```
+
+
+4. secondary school:
+Extracting the rows that includes "secondary school" in FormalEducation column.
+```{r}
+secondaryschool <- paged_table(dplyr::filter(DFSR, grepl("Secondary school",FormalEducation)))
+```
+
+Extract the Salary column from "secondary school"
+```{r}
+secondaryschoolS <- secondaryschool[, c("Salary")]
+```
+
+Count the average
+```{r}
+secondaryschoolSmean <- print(mean(secondaryschoolS))
+```
+
+
+5. doctoral degree:
+Extracting the rows that includes "doctoral degree" in FormalEducation column.
+```{r}
+doctoraldegree <- paged_table(dplyr::filter(DFSR, grepl("Doctoral degree",FormalEducation)))
+```
+
+Extract the Salary column from "doctoral degree"
+```{r}
+doctoraldegreeS <- doctoraldegree[, c("Salary")]
+```
+
+Count the average
+```{r}
+doctoraldegreeSmean <- print(mean(doctoraldegreeS))
+```
+
+
+Compare the salaries mean for each Formal Education Categories
+```{r}
+meansFormalEducationS <- data.frame(x=c(16874.93,16088.13,14100.29,5203.234,17590.74),
+                     y=c("bachelor's degree","master's degree","some college/university study without earning a bachelor's degree","secondary school","doctoral degree"))
+```
+
+```{r}
+ggplot(data= meansFormalEducationS, aes(x = reorder(y, -x) ,
+                        y = x)) +
+  geom_col(fill = "#9d8fdb") +
+  scale_y_continuous(labels = scales::comma) +
+  coord_flip() +
+  labs(x = "Formal Education Categories",
+       y = "Salary",
+       title = "Formal Education Categories mean comparetion") +
+  theme_minimal()
+```
+As we can see above developers with doctoral degree have the highest mean salary, followed by developers with bachelor's degree, followed by developers with master's degree. That leave us with the conclusion that people with high education certificate are earning more that the others. Hiring a developer with one of these certificate requesting the company to give him a high salary for that.
+
+-----------------------------------------------------------------------------------------
+
+Q4.	What are the most popular languages?
+
+Extracting the **HaveWorkedLanguage** column as a dataframe to count the frequency
+```{r}
+HaveWorkedLanguage <- DFSR[, c("HaveWorkedLanguage")]
+```
+
+The cells includes more than one languages so I'll separate them
+```{r, include=FALSE}
+lang <- data.frame(do.call('rbind',strsplit(as.character(DFSR$HaveWorkedLanguage),';',fixed = TRUE)))
+```
+
+Chick if there is NA's
+```{r}
+sum(is.na(lang))
+```
+
+Remove the NA's
+```{r}
+lang <- lang[!is.na(lang)]
+```
+
+Counting the categories frequency for the languages
+```{r}
+lang1 <- data.frame(table(unlist(strsplit(tolower(lang), " "))))
+```
+
+The first row includes the total number, so I'll delete it as well as the none row
+```{r, include=FALSE}
+lang2 <- lang1[-c(1,25),]
+```
+
+Using the plot to have good visualization results
+```{r}
+ggplot(data= lang2, aes(x = reorder(Var1, -Freq) ,
+                        y = Freq)) +
+  geom_col(fill = "#9d8fdb") +
+  scale_y_continuous(labels = scales::comma) +
+  coord_flip() +
+  labs(x = "Programming Lnguages",
+       y = "Freq",
+       title = "Languages Frequency") +
+  theme_minimal()
+```
+As we can see above in the plot we can come up with a conclusion which is the more using languages are the most requested languages in the market these days, which mean if there is a cv with some of the highest languages, that means his salary supposed to be higher than the other.
+
+--------------------------------------------------------------------------------------------------
+
+Q5. What is the average salary for top 5 language?
+
+Following the previous result in the plot, I'll count the average for the salaries for the top 5 languages
+
+1. JavaScript:
+Extracting the rows that includes "JavaScript" in HaveWorkedLanguage column. 
+```{r}
+JavaScript <- paged_table(dplyr::filter(DFSR, grepl("JavaScript",HaveWorkedLanguage)))
+```
+
+Extract the Salary column from "JavaScript"
+```{r}
+JavaScriptAS <- JavaScript[, c("Salary")]
+```
+
+Count the average
+```{r}
+JavaScriptASmean <- print(mean(JavaScriptAS))
+```
+
+
+2. SQL:
+Extracting the rows that includes "SQL" in HaveWorkedLanguage column. 
+```{r}
+SQL <- paged_table(dplyr::filter(DFSR, grepl("SQL",HaveWorkedLanguage)))
+```
+
+Extract the Salary column from "SQL"
+```{r}
+SQLAS <- SQL[, c("Salary")]
+```
+
+Count the average
+```{r}
+SQLASmean <- print(mean(SQLAS))
+```
+
+
+3. Java:
+Extracting the rows that includes "Java" in HaveWorkedLanguage column. 
+```{r}
+Java <- paged_table(dplyr::filter(DFSR, grepl("Java",HaveWorkedLanguage)))
+```
+
+Extract the Salary column from "Java"
+```{r}
+JavaAS <- Java[, c("Salary")]
+```
+
+Count the average
+```{r}
+JavaASmean <- print(mean(JavaAS))
+```
+
+
+4. C#:
+Extracting the rows that includes "C#" in HaveWorkedLanguage column. 
+```{r}
+C <- paged_table(dplyr::filter(DFSR, grepl("C#",HaveWorkedLanguage)))
+```
+
+Extract the Salary column from "C#"
+```{r}
+CAS <- C[, c("Salary")]
+```
+
+Count the average
+```{r}
+CASmean <- print(mean(CAS))
+```
+
+
+5. Python:
+Extracting the rows that includes "Python" in HaveWorkedLanguage column. 
+```{r}
+Python <- paged_table(dplyr::filter(DFSR, grepl("Python",HaveWorkedLanguage)))
+```
+
+Extract the Salary column from "Python"
+```{r}
+PythonAS <- Python[, c("Salary")]
+```
+
+Count the average
+```{r}
+PythonASmean <- print(mean(PythonAS))
+```
+
+Compare the salaries mean for each language
+```{r}
+means <- data.frame(x=c(20048.95,19328.11,19355.74,21483.68,18127.87),
+                     y=c("JavaScript","SQL","Java","C#","Python"))
+```
+
+```{r}
+ggplot(data= means, aes(x = reorder(y, -x) ,
+                        y = x)) +
+  geom_col(fill = "#9d8fdb") +
+  scale_y_continuous(labels = scales::comma) +
+  coord_flip() +
+  labs(x = "Lnguages",
+       y = "Salary",
+       title = "Salaries mean comparetion") +
+  theme_minimal()
+```
+As we can see above the salary average for "C#" language is the highest of the salaries. Which mean hiring a person who knows that language will require the company to give him a higher salary for that.
+
+---------------------------------------------------------------------------------------------
+
+Regression:
+
+1. Linear Regression
+Multiple linear regression
+```{r}
+test1 <- lm(Salary ~ YearsProgram + YearsCodedJob, data = DFSR)
+```
+
+```{r}
+(test2 <- update(test1, . ~ . + YearsCodedJob))
+```
+
+```{r}
+lm(Salary ~ YearsProgram + YearsCodedJob + YearsProgram:YearsCodedJob, data = DFSR)
+```
+
+```{r}
+test3 <- lm(Salary ~ ., data = DFSR) 
+```
+
+Answering the Research question:
+
+For the companies who wanted to hire a software developer, they need to take into consideration the languages that are in the cv's and the formal education as well, that will give them an idea about the range for the salary.
+For a person who wanted to learn new languages that may help him get a higher salary, he supposed to learn the most popular languages which are having a high frequency.
+In conclusion, we can say that the languages needs in the market could change in the future but for now, the most popular languages are JavaScript, SQL, Java, c# and python. Between these languages, the developer who knows C# and JavaScript could earn more salary than the others. For education, developers with doctoral and bachelor degrees could earn more salary than the others.
+
+
+
